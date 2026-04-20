@@ -1,359 +1,126 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Зарядні хаби — Одеса</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e8eaf0; }
-  #map { width: 100vw; height: 100vh; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Hubs Map Odesa</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
-  #panel {
-    position: fixed; top: 16px; left: 16px; z-index: 1000;
-    background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 14px; padding: 16px 18px; width: 260px;
-  }
-  #panel h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #7dd3fc; margin-bottom: 4px; }
-  #panel p  { font-size: 11px; color: #64748b; margin-bottom: 14px; }
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; }
+        #map { width: 100vw; height: 100vh; }
 
-  .filter-group { margin-bottom: 10px; }
-  .filter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; margin-bottom: 6px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  .chip {
-    font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer;
-    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
-    color: #94a3b8; transition: all .15s;
-  }
-  .chip:hover { border-color: rgba(255,255,255,0.25); color: #e2e8f0; }
-  .chip.on { background: #1e40af; border-color: #3b82f6; color: #bfdbfe; }
-  .chip.on.red { background: #7f1d1d; border-color: #ef4444; color: #fecaca; }
-  .chip.on.amber { background: #78350f; border-color: #f59e0b; color: #fde68a; }
-  .chip.on.green { background: #14532d; border-color: #22c55e; color: #bbf7d0; }
+        /* Стиль всплывающего окна при наведении */
+        .custom-tooltip {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #38bdf8;
+            color: white;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        .tooltip-title { font-weight: bold; color: #38bdf8; font-size: 15px; margin-bottom: 5px; display: block; }
+        .tooltip-row { margin-bottom: 3px; display: flex; justify-content: space-between; gap: 20px; }
+        .dist-tag { color: #fbbf24; font-weight: bold; }
 
-  .legend { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07); }
-  .leg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; color: #94a3b8; }
-  .leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .leg-star { width: 14px; height: 14px; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:12px; }
-
-  .count { font-size: 11px; color: #475569; margin-top: 10px; }
-  #count-n { color: #7dd3fc; font-weight: 600; }
-
-  /* Постоянная подпись */
-  .station-label {
-    background: rgba(10,12,18,0.93);
-    border: 1px solid rgba(255,255,255,0.13);
-    border-radius: 9px;
-    padding: 6px 10px;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    pointer-events: none;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.55);
-    max-width: 200px;
-  }
-  .label-name {
-    font-size: 11px; font-weight: 600; color: #e2e8f0;
-    display: block; margin-bottom: 4px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .label-plugs { display: flex; flex-direction: column; gap: 2px; }
-  .label-plug {
-    font-size: 10px; white-space: nowrap;
-    display: flex; align-items: center; gap: 4px;
-  }
-  .plug-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .p-fast { color: #f87171; } .pd-fast { background: #f87171; }
-  .p-dc   { color: #93c5fd; } .pd-dc   { background: #93c5fd; }
-  .p-ac   { color: #86efac; } .pd-ac   { background: #86efac; }
-
-  /* Метка нашего хаба */
-  .our-label {
-    background: rgba(234,179,8,0.15);
-    border: 1.5px solid #eab308;
-    border-radius: 9px;
-    padding: 6px 10px;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    pointer-events: none;
-    box-shadow: 0 0 14px rgba(234,179,8,0.3);
-    white-space: nowrap;
-  }
-  .our-label .label-name { color: #fde68a; font-size: 12px; }
-  .our-label .label-sub  { font-size: 10px; color: #ca8a04; margin-top: 2px; display: block; }
-
-  /* Popup */
-  .leaflet-popup-content-wrapper {
-    background: rgba(15,17,23,0.97) !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-    border-radius: 12px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-    color: #e2e8f0 !important;
-  }
-  .leaflet-popup-tip { background: rgba(15,17,23,0.97) !important; }
-  .leaflet-popup-content { margin: 14px 16px !important; min-width: 200px; }
-  .popup-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: #f1f5f9; }
-  .popup-addr { font-size: 12px; color: #64748b; margin-bottom: 8px; }
-  .popup-net  { font-size: 11px; color: #7dd3fc; margin-bottom: 10px; }
-  .popup-our  { font-size: 11px; color: #fde68a; margin-bottom: 10px; }
-  .plugs-grid { display: flex; flex-wrap: wrap; gap: 5px; }
-  .plug-tag {
-    font-size: 11px; padding: 3px 8px; border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .plug-fast { background: rgba(239,68,68,0.15);  color: #fca5a5; border-color: rgba(239,68,68,0.3); }
-  .plug-dc   { background: rgba(59,130,246,0.15); color: #93c5fd; border-color: rgba(59,130,246,0.3); }
-  .plug-ac   { background: rgba(34,197,94,0.15);  color: #86efac; border-color: rgba(34,197,94,0.3); }
-</style>
+        #legend {
+            position: fixed; bottom: 30px; left: 20px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+    </style>
 </head>
 <body>
-
-<div id="panel">
-  <h1>⚡ Зарядні хаби</h1>
-  <p>Одеса · <span id="count-n">19</span> станцій</p>
-
-  <div class="filter-group">
-    <div class="filter-label">Потужність</div>
-    <div class="chips">
-      <div class="chip on" data-f="all">Усі</div>
-      <div class="chip" data-f="high">50+ кВт</div>
-      <div class="chip" data-f="mid">22–49 кВт</div>
-      <div class="chip" data-f="low">до 22 кВт</div>
-    </div>
-  </div>
-
-  <div class="filter-group">
-    <div class="filter-label">Мережа</div>
-    <div class="chips">
-      <div class="chip on" data-n="all">Усі</div>
-      <div class="chip" data-n="ECOFACTOR">EcoFactor</div>
-      <div class="chip" data-n="IONITY">IONITY</div>
-      <div class="chip" data-n="EVA">EVA</div>
-      <div class="chip" data-n="TOKA">TOKA</div>
-    </div>
-  </div>
-
-  <div class="legend">
-    <div class="leg-row"><div class="leg-dot" style="background:#ef4444"></div>50+ кВт — швидка DC</div>
-    <div class="leg-row"><div class="leg-dot" style="background:#f59e0b"></div>22–49 кВт — середня</div>
-    <div class="leg-row"><div class="leg-dot" style="background:#22c55e"></div>до 22 кВт — повільна AC</div>
-    <div class="leg-row"><div class="leg-star">★</div>Наш майбутній хаб</div>
-  </div>
-</div>
 
 <div id="map"></div>
 
 <script>
-const COLORS = { high:'#ef4444', mid:'#f59e0b', low:'#22c55e' };
+    // 1. Координаты Музкомедии (Пантелеймоновская, 3)
+    const BASE_LOCATION = [46.468378, 30.751172];
+    
+    // 2. Ссылка на ваш измененный файл (опубликованный как CSV)
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS_m_pE-Y8C0eX1Zc9S_0y68Y_e-m6p_jRk36968-3-p_q0/pub?output=csv';
 
-const stations = [
-  { name:"БЦ на Шевченко", addr:"пр. Шевченко 4А/4Д", net:"IONITY / EcoFactor", maxKw:60, tier:"high",
-    lat:46.4590, lng:30.7488,
-    plugs:[{l:"CCS2 60kW",t:"fast"},{l:"CHAdeMO 50kW",t:"dc"},{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
+    const map = L.map('map', { zoomControl: true }).setView(BASE_LOCATION, 14);
 
-  { name:"Проспект Гагаріна", addr:"пр. Гагаріна 12А", net:"EVBoost / IONITY", maxKw:50, tier:"high",
-    lat:46.4560, lng:30.7459,
-    plugs:[{l:"CHAdeMO 50kW",t:"dc"},{l:"CCS1 50kW",t:"dc"},{l:"CCS2 50kW",t:"dc"},{l:"GBT DC 50kW",t:"dc"},{l:"Type2 22kW",t:"ac"},{l:"Type1 9kW",t:"ac"}] },
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-  { name:"БЦ Кристалл", addr:"вул. Середньофонтанська 19", net:"ECOFACTOR", maxKw:160, tier:"high",
-    lat:46.4594, lng:30.7406,
-    plugs:[{l:"CCS2 160kW",t:"fast"},{l:"GBT DC 160kW",t:"fast"},{l:"CHAdeMO 50kW",t:"dc"}] },
+    // Функция расчета расстояния (формула Гаверсинуса)
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Радиус Земли в км
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return (R * c).toFixed(2);
+    }
 
-  { name:"ТРЦ Fontan Sky Center", addr:"провул. Семафорний 4", net:"IONITY AC/DC", maxKw:60, tier:"high",
-    lat:46.4617, lng:30.7418,
-    plugs:[{l:"CHAdeMO 50kW",t:"dc"},{l:"CCS2 60kW",t:"fast"},{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
+    // Добавляем маркер Музкомедии
+    const mainHub = L.circleMarker(BASE_LOCATION, {
+        radius: 12,
+        fillColor: "#fbbf24",
+        color: "#fff",
+        weight: 3,
+        fillOpacity: 0.9
+    }).addTo(map);
 
-  { name:"Лікеро-Горілчаний завод", addr:"вул. Старосінна 1", net:"ECOFACTOR", maxKw:22, tier:"mid",
-    lat:46.4647, lng:30.7395,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"Старосенна площа", addr:"Старосенна пл. 1A", net:"TOKA / AE", maxKw:22, tier:"mid",
-    lat:46.4655, lng:30.7392,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"Куликове Поле — EVA 1", addr:"площа Куликове Поле 1", net:"EVA", maxKw:60, tier:"high",
-    lat:46.4660, lng:30.7432,
-    plugs:[{l:"CHAdeMO 50kW",t:"dc"},{l:"CCS2 60kW",t:"fast"},{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"Куликове Поле — EVA 2", addr:"площа Куликове Поле 1", net:"EVA", maxKw:60, tier:"high",
-    lat:46.4658, lng:30.7435,
-    plugs:[{l:"CHAdeMO 60kW",t:"fast"},{l:"CCS2 60kW",t:"fast"},{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"Куликове Поле — EVA 3", addr:"площа Куликове Поле 1", net:"EVA", maxKw:9, tier:"low",
-    lat:46.4656, lng:30.7428,
-    plugs:[{l:"Type1 9kW",t:"ac"},{l:"Type1 9kW",t:"ac"}] },
-
-  { name:"Куликове Поле — EVA 4", addr:"площа Куликове Поле 1", net:"EVA", maxKw:50, tier:"high",
-    lat:46.4662, lng:30.7430,
-    plugs:[{l:"CHAdeMO 50kW",t:"dc"},{l:"CCS1 50kW",t:"dc"},{l:"CCS2 50kW",t:"dc"},{l:"GBT DC 50kW",t:"dc"},{l:"Type2 22kW",t:"ac"},{l:"Type1 9kW",t:"ac"}] },
-
-  { name:"Готель Палладіум", addr:"вул. Канатна 84", net:"ECOFACTOR", maxKw:22, tier:"mid",
-    lat:46.4686, lng:30.7463,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"БЦ Арнаутський", addr:"вул. Велика Арнаутська 53м", net:"ECOFACTOR", maxKw:22, tier:"mid",
-    lat:46.4724, lng:30.7402,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"Готель Чорне Море", addr:"вул. Рішельєвська 58м", net:"ECOFACTOR", maxKw:22, tier:"mid",
-    lat:46.4733, lng:30.7390,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"БЦ Атлан", addr:"вул. Італійська 50", net:"EcoFactor", maxKw:22, tier:"mid",
-    lat:46.4741, lng:30.7412,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"ЖК Капітан", addr:"вул. Базарна 14", net:"ECOFACTOR", maxKw:22, tier:"mid",
-    lat:46.4734, lng:30.7507,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"}] },
-
-  { name:"TOKA NEMO — Ланжерон", addr:"пляж Ланжерон 1/1", net:"TOKA", maxKw:22, tier:"mid",
-    lat:46.4772, lng:30.7652,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"},{l:"GBT AC 7kW",t:"ac"}] },
-
-  { name:"Лідерсівський бульвар", addr:"Лідерсівський бульвар 1", net:"EVA", maxKw:22, tier:"mid",
-    lat:46.4785, lng:30.7645,
-    plugs:[{l:"Type2 22kW",t:"ac"},{l:"Type1 7kW",t:"ac"},{l:"GBT AC 7kW",t:"ac"}] },
-
-  { name:"Стадіон Чорноморець (AC)", addr:"Головна алея 1", net:"ECOFACTOR", maxKw:9, tier:"low",
-    lat:46.4803, lng:30.7555,
-    plugs:[{l:"Type1 9kW",t:"ac"},{l:"Type1 9kW",t:"ac"}] },
-
-  { name:"Стадіон Чорноморець (DC)", addr:"вул. Маразліївська 33", net:"ECOFACTOR", maxKw:50, tier:"high",
-    lat:46.4808, lng:30.7562,
-    plugs:[{l:"CHAdeMO 50kW",t:"dc"},{l:"CCS2 50kW",t:"dc"},{l:"Type2 22kW",t:"ac"}] }
-];
-
-const OUR_HUB = {
-  name: "Наш хаб — Музкомедія",
-  addr: "вул. Пантелеймонівська 3",
-  lat: 46.4684,
-  lng: 30.7512
-};
-
-const map = L.map('map', { zoomControl: false }).setView([46.468, 30.748], 14);
-
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap © CARTO', maxZoom: 19
-}).addTo(map);
-
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-let markers = [];
-let filterTier = 'all', filterNet = 'all';
-
-function netKey(n) {
-  n = n.toUpperCase();
-  if (n.includes('ECOFACTOR') || n.includes('ECOFA')) return 'ECOFACTOR';
-  if (n.includes('IONITY')) return 'IONITY';
-  if (n.includes('EVA')) return 'EVA';
-  if (n.includes('TOKA')) return 'TOKA';
-  return 'OTHER';
-}
-
-function plugsHtml(plugs) {
-  return plugs.map(p => `<span class="plug-tag plug-${p.t}">${p.l}</span>`).join('');
-}
-
-function labelPlugsHtml(plugs) {
-  return plugs.map(p => {
-    return `<div class="label-plug"><div class="plug-dot pd-${p.t}"></div><span class="p-${p.t}">${p.l}</span></div>`;
-  }).join('');
-}
-
-function addOurHub() {
-  const starIcon = L.divIcon({
-    className: '',
-    html: `<div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:18px;filter:drop-shadow(0 0 6px #eab308);">★</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
-  });
-
-  const m = L.marker([OUR_HUB.lat, OUR_HUB.lng], { icon: starIcon }).addTo(map);
-
-  m.bindTooltip(`
-    <div class="our-label">
-      <span class="label-name">★ ${OUR_HUB.name}</span>
-      <span class="label-sub">${OUR_HUB.addr}</span>
-      <span class="label-sub">Планується встановлення</span>
-    </div>
-  `, { permanent: true, direction: 'right', offset: [12, 0], opacity: 1, className: '' });
-
-  m.bindPopup(`
-    <div class="popup-name">★ ${OUR_HUB.name}</div>
-    <div class="popup-addr">${OUR_HUB.addr}</div>
-    <div class="popup-our">Планується встановлення нашого зарядного хабу</div>
-  `, { maxWidth: 260 });
-}
-
-function buildMarkers() {
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
-
-  const visible = stations.filter(s => {
-    const t = filterTier === 'all' || s.tier === filterTier;
-    const n = filterNet === 'all' || netKey(s.net) === filterNet;
-    return t && n;
-  });
-
-  document.getElementById('count-n').textContent = visible.length;
-
-  visible.forEach(s => {
-    const color = COLORS[s.tier];
-
-    const dotIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.6);box-shadow:0 0 8px ${color}88;"></div>`,
-      iconSize: [12, 12],
-      iconAnchor: [6, 6]
+    mainHub.bindTooltip("<b style='color:#000'>НАШ ХАБ: Музкомедия</b><br>ул. Пантелеймоновская, 3", {
+        permanent: true,
+        direction: 'top',
+        className: 'custom-tooltip',
+        offset: [0, -15]
     });
 
-    const marker = L.marker([s.lat, s.lng], { icon: dotIcon }).addTo(map);
+    // Загрузка данных из вашей таблицы
+    function init() {
+        Papa.parse(SHEET_URL, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                results.data.forEach(item => {
+                    if(!item.lat || !item.lng) return;
 
-    // Постоянная подпись — ПОЛНЫЙ список роз'ємів
-    marker.bindTooltip(`
-      <div class="station-label">
-        <span class="label-name">${s.name}</span>
-        <div class="label-plugs">${labelPlugsHtml(s.plugs)}</div>
-      </div>
-    `, { permanent: true, direction: 'right', offset: [10, 0], opacity: 1, className: '' });
+                    const distance = getDistance(BASE_LOCATION[0], BASE_LOCATION[1], item.lat, item.lng);
+                    
+                    const marker = L.circleMarker([item.lat, item.lng], {
+                        radius: 7,
+                        fillColor: "#38bdf8",
+                        color: "#fff",
+                        weight: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map);
 
-    // Popup — те саме + адреса и мережа
-    marker.bindPopup(`
-      <div class="popup-name">${s.name}</div>
-      <div class="popup-addr">${s.addr}</div>
-      <div class="popup-net">⚡ ${s.net}</div>
-      <div class="plugs-grid">${plugsHtml(s.plugs)}</div>
-    `, { maxWidth: 280 });
+                    // Контент для выпадения при наведении
+                    const tooltipHtml = `
+                        <div class="tooltip-box">
+                            <span class="tooltip-title">${item.name}</span>
+                            <div class="tooltip-row"><span>Адрес:</span> <span>${item.addr || 'не указан'}</span></div>
+                            <div class="tooltip-row"><span>Мощность:</span> <b>${item.maxKw} кВт</b></div>
+                            <div class="tooltip-row"><span>Сеть:</span> <span>${item.net}</span></div>
+                            <div class="tooltip-row" style="margin-top:5px; border-top:1px solid #334155; padding-top:5px;">
+                                <span>До Музкомедии:</span> <span class="dist-tag">${distance} км</span>
+                            </div>
+                        </div>
+                    `;
 
-    markers.push(marker);
-  });
-}
+                    marker.bindTooltip(tooltipHtml, {
+                        direction: 'top',
+                        className: 'custom-tooltip',
+                        sticky: true // Следует за мышкой
+                    });
+                });
+            }
+        });
+    }
 
-// Фільтри
-document.querySelectorAll('[data-f]').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('[data-f]').forEach(x => x.classList.remove('on','red','amber','green'));
-    filterTier = el.dataset.f;
-    el.classList.add('on');
-    if (filterTier === 'high') el.classList.add('red');
-    else if (filterTier === 'mid') el.classList.add('amber');
-    else if (filterTier === 'low') el.classList.add('green');
-    buildMarkers();
-  });
-});
-
-document.querySelectorAll('[data-n]').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('[data-n]').forEach(x => x.classList.remove('on'));
-    filterNet = el.dataset.n;
-    el.classList.add('on');
-    buildMarkers();
-  });
-});
-
-buildMarkers();
-addOurHub();
+    init();
 </script>
 </body>
 </html>
