@@ -39,8 +39,10 @@
   .leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .leg-star { width: 14px; height: 14px; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:12px; }
 
+  .count { font-size: 11px; color: #475569; margin-top: 10px; }
   #count-n { color: #7dd3fc; font-weight: 600; }
 
+  /* Постоянная подпись */
   .station-label {
     background: rgba(10,12,18,0.93);
     border: 1px solid rgba(255,255,255,0.13);
@@ -66,6 +68,7 @@
   .p-dc   { color: #93c5fd; } .pd-dc   { background: #93c5fd; }
   .p-ac   { color: #86efac; } .pd-ac   { background: #86efac; }
 
+  /* Метка нашего хаба */
   .our-label {
     background: rgba(234,179,8,0.15);
     border: 1.5px solid #eab308;
@@ -79,6 +82,7 @@
   .our-label .label-name { color: #fde68a; font-size: 12px; }
   .our-label .label-sub  { font-size: 10px; color: #ca8a04; margin-top: 2px; display: block; }
 
+  /* Popup */
   .leaflet-popup-content-wrapper {
     background: rgba(15,17,23,0.97) !important;
     border: 1px solid rgba(255,255,255,0.12) !important;
@@ -252,9 +256,9 @@ function plugsHtml(plugs) {
 }
 
 function labelPlugsHtml(plugs) {
-  return plugs.map(p =>
-    `<div class="label-plug"><div class="plug-dot pd-${p.t}"></div><span class="p-${p.t}">${p.l}</span></div>`
-  ).join('');
+  return plugs.map(p => {
+    return `<div class="label-plug"><div class="plug-dot pd-${p.t}"></div><span class="p-${p.t}">${p.l}</span></div>`;
+  }).join('');
 }
 
 function addOurHub() {
@@ -306,6 +310,7 @@ function buildMarkers() {
 
     const marker = L.marker([s.lat, s.lng], { icon: dotIcon }).addTo(map);
 
+    // Постоянная подпись — ПОЛНЫЙ список роз'ємів
     marker.bindTooltip(`
       <div class="station-label">
         <span class="label-name">${s.name}</span>
@@ -313,6 +318,7 @@ function buildMarkers() {
       </div>
     `, { permanent: true, direction: 'right', offset: [10, 0], opacity: 1, className: '' });
 
+    // Popup — те саме + адреса и мережа
     marker.bindPopup(`
       <div class="popup-name">${s.name}</div>
       <div class="popup-addr">${s.addr}</div>
@@ -324,6 +330,7 @@ function buildMarkers() {
   });
 }
 
+// Фільтри
 document.querySelectorAll('[data-f]').forEach(el => {
   el.addEventListener('click', () => {
     document.querySelectorAll('[data-f]').forEach(x => x.classList.remove('on','red','amber','green'));
